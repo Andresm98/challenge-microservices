@@ -1,0 +1,16 @@
+server:
+  port: 8082
+
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/account_db
+    username: user
+    password: password
+  sql:
+    init:
+      mode: always   # Esto fuerza la ejecución de schema.sql y data.sql al iniciar
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
