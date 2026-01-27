@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+spring:
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/customer_db
+    username: user
+    password: password
+  kafka:
+    bootstrap-servers: localhost:9092
+  sql:
+    init:
+      mode: always # Esto ejecutará el schema.sql al iniciar
