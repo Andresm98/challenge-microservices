@@ -8,7 +8,7 @@ spring:
     password: password
   sql:
     init:
-      mode: always   # Esto fuerza la ejecución de schema.sql y data.sql al iniciar
+      mode: always
   kafka:
     bootstrap-servers: localhost:9092
     producer:

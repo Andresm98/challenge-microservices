@@ -15,7 +15,9 @@ public class KafkaProducer {
     private static final String TOPIC = "movement-events";
 
     public void sendMovementEvent(Movement movement) {
+        // Implementación para enviar el evento a Kafka (LOGS)
         log.info("Enviando evento de movimiento a Kafka: {}", movement.getId());
+
         kafkaTemplate.send(TOPIC, movement);
     }
 }

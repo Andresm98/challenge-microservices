@@ -6,8 +6,8 @@ spring:
     url: r2dbc:postgresql://localhost:5432/customer_db
     username: user
     password: password
-  kafka:
-    bootstrap-servers: localhost:9092
   sql:
     init:
-      mode: always # Esto ejecutará el schema.sql al iniciar
+      mode: always
+  kafka:
+    bootstrap-servers: localhost:9092
