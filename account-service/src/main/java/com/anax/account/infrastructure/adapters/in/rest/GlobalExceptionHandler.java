@@ -18,5 +18,5 @@ public class GlobalExceptionHandler {
                 .body(Map.of("message", ex.getMessage(), "code", "500"));
     }
 
-    // Aquí agregaremos luego el error "Saldo no disponible" para el otro microservicio
+    // TODO:: error "Saldo no disponible" para el otro microservicio
 }

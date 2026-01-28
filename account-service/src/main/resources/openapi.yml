@@ -9,6 +9,18 @@ paths:
     post:
       summary: Create account
       operationId: createAccount
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema: { type: string }
+        - name: movementType
+          in: query
+          required: true
+          schema: { type: string, enum: [ Ahorro, Retiro ] }
+        - name: value
+          in: query
+          schema: { type: number, format: double }
       responses:
         '201':
           description: Created
@@ -23,7 +35,7 @@ paths:
         '400':
           description: Insufficient balance
 
-  /reports/{client-id}:
+  /api/v1/reports/{client-id}:
     get:
       summary: Account statement report
       operationId: getReport

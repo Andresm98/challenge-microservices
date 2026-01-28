@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS accounts;
 CREATE TABLE accounts
 (
     id              SERIAL PRIMARY KEY,
-    account_number  VARCHAR(50)    NOT NULL,
+    account_number  VARCHAR(50)    NOT NULL UNIQUE,
     account_type    VARCHAR(50)    NOT NULL,
     initial_balance DECIMAL(15, 2) NOT NULL,
     status          BOOLEAN        NOT NULL,

@@ -1,10 +1,13 @@
 package com.anax.account.infrastructure.adapters.in.rest;
 
+import com.anax.account.domain.model.Account;
 import com.anax.account.domain.model.Movement;
+import com.anax.account.domain.repository.MovementRepository;
 import com.anax.account.domain.service.MovementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -13,6 +16,13 @@ import reactor.core.publisher.Mono;
 public class MovementController {
 
     private final MovementService movementService;
+
+    private final MovementRepository repository;
+
+    @GetMapping
+    public Flux<Movement> getAll() {
+        return repository.findAll();
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

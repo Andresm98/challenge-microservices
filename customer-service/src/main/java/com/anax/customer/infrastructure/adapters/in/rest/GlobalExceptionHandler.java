@@ -16,6 +16,4 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", ex.getMessage(), "code", "500"));
     }
-
-    // Aquí agregaremos luego el error "Saldo no disponible" para el otro microservicio
 }
