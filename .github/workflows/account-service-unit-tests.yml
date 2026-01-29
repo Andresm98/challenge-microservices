@@ -40,7 +40,7 @@ jobs:
 
       - name: Run unit tests
         working-directory: account-service
-        run: mvn clean test -DexcludeTags=integration
+        run: mvn -Dtest=*ServiceTest test
 
 
       - name: Show test reports
