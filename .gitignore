@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Maven build outputs (para todos los microservicios)
+**/target/
+*.log
+
+# Env files (para todos los microservicios)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Docker overrides
+docker-compose.override.yml
