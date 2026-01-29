@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+// descartar
 @Tag("integration")
 @SpringBootTest
 public class KafkaSmokeTest {
