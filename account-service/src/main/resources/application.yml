@@ -3,14 +3,14 @@ server:
 
 spring:
   r2dbc:
-    url: r2dbc:postgresql://localhost:5433/account_db
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:5433/account_db}
     username: user
     password: password
   sql:
     init:
       mode: always
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -20,3 +20,13 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.anax.account.domain.model" # IMPORTANTE: Permite mapear tu clase
+
+# Configuración para el WebClient (Reporte F4)
+customer:
+  url: ${CUSTOMER_SERVICE_URL:http://localhost:8081/api/v1/customers}
+
+springdoc:
+  swagger-ui:
+    url: /docs/openapi.yaml
+  api-docs:
+    path: /v3/api-docs

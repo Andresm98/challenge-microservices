@@ -1,0 +1,382 @@
+openapi: 3.0.3
+info:
+  title: Microservicios Bancarios NTT Data
+  version: 1.0.0
+  description: API integral para la gestión de Clientes (Customer Service) y Finanzas (Account Service).
+servers:
+  - url: http://localhost:8081/api/v1
+    description: Customer Service (Puerto 8081)
+  - url: http://localhost:8082/api/v1
+    description: Account-Movement-Report Service (Puerto 8082)
+
+paths:
+  # --- CUSTOMER SERVICE ENDPOINTS ---
+  /customers:
+    get:
+      tags: [ Customers ]
+      summary: Listar todos los clientes
+      responses:
+        '200':
+          description: OK
+    post:
+      tags: [ Customers ]
+      summary: Crear un nuevo cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Santiago Moreta
+              gender: Masculino
+              age: 27
+              identification: "104425848"
+              address: Juan Molineros y 24 de Mayo
+              phone: "099999999"
+              password: "4321"
+              status: true
+            schema:
+              $ref: '#/components/schemas/Customer'
+      responses:
+        '201':
+          description: Cliente creado exitosamente
+
+  /customers/{id}:
+    get:
+      tags: [ Customers ]
+      summary: Obtener detalle de un cliente por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Datos del cliente encontrados
+    put:
+      tags: [ Customers ]
+      summary: Actualizar cliente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: Santiago Andres Moreta
+              gender: Masculino
+              age: 28
+              identification: "1004280666"
+              address: 13 junio y Equinoccial ED
+              phone: "096666666"
+              password: "54321"
+              status: true
+            schema:
+              $ref: '#/components/schemas/Customer'
+
+      responses:
+        '200':
+          description: Cliente actualizado
+
+    delete:
+      tags: [ Customers ]
+      summary: Eliminar cliente
+      description: Elimina un cliente por su ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 4
+      responses:
+        '204':
+          description: Cliente eliminado correctamente
+        '404':
+          description: Cliente no encontrado
+
+
+  # --- ACCOUNT SERVICE ENDPOINTS ---
+
+  /accounts:
+    get:
+      tags: [ Accounts ]
+      summary: Obtener todas las cuentas bancarias
+      responses:
+        '200':
+          description: Lista de cuentas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+
+    post:
+      tags: [ Accounts ]
+      summary: Crear una nueva cuenta bancaria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+            example:
+              accountNumber: "585545"
+              accountType: Corriente
+              status: true
+              initialBalance: 1000.00
+              customerId: 1
+      responses:
+        '201':
+          description: Cuenta creada con éxito
+
+  /accounts/{id}:
+    get:
+      tags: [ Accounts ]
+      summary: Obtener una cuenta por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Cuenta encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          description: Cuenta no encontrada
+
+    put:
+      tags: [ Accounts ]
+      summary: Actualizar el estado de una cuenta
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 4
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: boolean
+            example:
+              status: true
+      responses:
+        '200':
+          description: Cuenta actualizada correctamente
+        '404':
+          description: Cuenta no encontrada
+
+  # --- MOVEMENTS SERVICE ENDPOINTS ---
+  /movements:
+    get:
+      tags: [ Movements ]
+      summary: Obtener todos los movimientos
+      responses:
+        '200':
+          description: Lista de movimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Movement'
+
+    post:
+      tags: [ Movements ]
+      summary: Registrar movimiento (Depósito / Retiro)
+      description: Realiza la lógica de saldos y dispara eventos a Kafka.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Movement'
+            examples:
+              deposito:
+                summary: Depósito
+                value:
+                  accountId: 1
+                  movementType: Deposito
+                  value: 8400.0
+              retiro:
+                summary: Retiro
+                value:
+                  accountId: 1
+                  movementType: Retiro
+                  value: 200.0
+      responses:
+        '201':
+          description: Movimiento procesado
+        '500':
+          description: Saldo no disponible (F3)
+
+  # REPOTE
+
+  /reports/{clientId}:
+    get:
+      tags: [ Reports ]
+      summary: Generar estado de cuenta detallado
+      description: Retorna un reporte consolidado de movimientos y cuentas para un cliente, filtrado por rango de fechas.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            default: "2024-01-01T00:00:00"
+          example: "2024-01-01T00:00:00"
+
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            default: "2026-12-31T23:59:59"
+          example: "2026-12-31T23:59:59"
+
+      responses:
+        '200':
+          description: Reporte consolidado con datos de ambos microservicios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+              example:
+                clientId: 1
+                clientName: "Santiago Moreta"
+                accountNumber: "585545"
+                accountType: "Corriente"
+                initialBalance: 1000.0
+                movements:
+                  - date: "2024-02-01T10:00:00"
+                    movementType: Deposito
+                    value: 8400.0
+                    balance: 9400.0
+                  - date: "2024-02-05T15:30:00"
+                    movementType: Retiro
+                    value: 200.0
+                    balance: 9200.0
+
+
+# schemas componentes
+
+components:
+  schemas:
+    Customer:
+      type: object
+      required:
+        - identification
+      properties:
+        name:
+          type: string
+        gender:
+          type: string
+        age:
+          type: integer
+        identification:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        password:
+          type: string
+        status:
+          type: boolean
+
+    Account:
+      type: object
+      required:
+        - accountNumber
+        - accountType
+        - status
+        - initialBalance
+        - customerId
+      properties:
+        accountNumber:
+          type: string
+          example: "585545"
+        accountType:
+          type: string
+          example: Corriente
+        status:
+          type: boolean
+          example: true
+        initialBalance:
+          type: number
+          format: double
+          example: 1000.00
+        customerId:
+          type: integer
+          example: 1
+
+    Movement:
+      type: object
+      properties:
+        accountId:
+          type: integer
+        movementType:
+          type: string
+          enum: [ Deposito, Retiro ]
+        value:
+          type: number
+
+    Report:
+      type: object
+      properties:
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        accountNumber:
+          type: string
+        accountType:
+          type: string
+        initialBalance:
+          type: number
+          format: double
+        movements:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date-time
+              movementType:
+                type: string
+                enum: [ Deposito, Retiro ]
+              value:
+                type: number
+                format: double
+              balance:
+                type: number
+                format: double

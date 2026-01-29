@@ -1,9 +1,8 @@
 package com.anax.account.infrastructure.adapters.in.rest;
 
-import com.anax.account.domain.model.Account;
 import com.anax.account.domain.model.Movement;
 import com.anax.account.domain.repository.MovementRepository;
-import com.anax.account.domain.service.MovementService;
+import com.anax.account.aplication.services.MovementService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

@@ -43,8 +43,8 @@ public class AccountController {
                 .switchIfEmpty(Mono.error(new RuntimeException("Cuenta no existe")))
                 .flatMap(existing -> {
 
-                    existing.setAccountNumber(dto.getAccountNumber());
-                    existing.setAccountType(dto.getAccountType());
+//                    existing.setAccountNumber(dto.getAccountNumber());  -> TODO:: en caso de que se permita cambiar el cliente
+//                    existing.setAccountType(dto.getAccountType());  -> TODO:: en caso de que se permita cambiar el cliente
                     existing.setStatus(dto.getStatus());
                     // existing.setCustomerId(dto.getCustomerId());  -> TODO:: en caso de que se permita cambiar el cliente
                     return repository.save(existing);

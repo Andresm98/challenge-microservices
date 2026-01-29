@@ -1,5 +1,6 @@
 package com.anax.account.domain.service;
 
+import com.anax.account.aplication.services.MovementService;
 import com.anax.account.domain.exception.InsufficientBalanceException;
 import com.anax.account.domain.model.Account;
 import com.anax.account.domain.model.Movement;

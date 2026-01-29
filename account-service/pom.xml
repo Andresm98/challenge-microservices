@@ -130,38 +130,12 @@
                 </configuration>
             </plugin>
             <!-- Plugin OpenAPI Generator -->
-            <plugin>
-                <groupId>org.openapitools</groupId>
-                <artifactId>openapi-generator-maven-plugin</artifactId>
-                <version>7.18.0</version>
-                <executions>
-                    <execution>
-                        <id>generate-spring-server</id>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                        <configuration>
-                            <inputSpec>${project.basedir}/src/main/resources/openapi.yml</inputSpec>
-                            <generatorName>spring</generatorName>
-                            <library>spring-boot</library>
-                            <apiPackage>com.anax.account.infrastructure.rest.api</apiPackage>
-                            <modelPackage>com.anax.account.infrastructure.rest.model</modelPackage>
-                            <configOptions>
-                                <interfaceOnly>true</interfaceOnly>
-                                <useSpringBoot3>true</useSpringBoot3>
-                                <useJakartaEe>true</useJakartaEe>
-                                <reactive>true</reactive>
-                            </configOptions>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <excludedTags>integration</excludedTags>
                     <useModulePath>false</useModulePath>
                 </configuration>
             </plugin>

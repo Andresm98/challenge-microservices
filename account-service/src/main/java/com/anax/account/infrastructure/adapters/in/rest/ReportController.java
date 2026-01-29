@@ -1,7 +1,7 @@
 package com.anax.account.infrastructure.adapters.in.rest;
 
 import com.anax.account.domain.model.dto.AccountStatementDTO;
-import com.anax.account.domain.service.ReportService;
+import com.anax.account.aplication.services.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;

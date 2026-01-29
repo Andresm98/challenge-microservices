@@ -1,5 +1,4 @@
 services:
-
   customer-postgres:
     image: postgres:16
     container_name: banking-customer-postgres
@@ -11,9 +10,6 @@ services:
       POSTGRES_PASSWORD: password
     labels:
       - "com.nttdata.project=banking-platform"
-      - "com.nttdata.service=customer-database"
-      - "com.nttdata.environment=local"
-      - "com.nttdata.owner=santiago"
 
   account-postgres:
     image: postgres:16
@@ -26,20 +22,12 @@ services:
       POSTGRES_PASSWORD: password
     labels:
       - "com.nttdata.project=banking-platform"
-      - "com.nttdata.service=account-database"
-      - "com.nttdata.environment=local"
-      - "com.nttdata.owner=santiago"
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: banking-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    labels:
-      - "com.nttdata.project=banking-platform"
-      - "com.nttdata.service=zookeeper"
-      - "com.nttdata.environment=local"
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -53,11 +41,8 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    labels:
-      - "com.nttdata.project=banking-platform"
-      - "com.nttdata.service=kafka"
-      - "com.nttdata.environment=local"
 
   akhq:
     image: tchiotludo/akhq
@@ -71,17 +56,32 @@ services:
             local-kafka:
               properties:
                 bootstrap.servers: kafka:29092
-    labels:
-      - "com.nttdata.project=banking-platform"
-      - "com.nttdata.service=akhq"
-      - "com.nttdata.environment=local"
 
+  customer-service:
+    build:
+      context: ./customer-service
+      dockerfile: Dockerfile
+    container_name: customer-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - customer-postgres
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://customer-postgres:5432/customer_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
-  
-  # kafdrop:
-  #   image: obsidiandynamics/kafdrop
-  #   ports:
-  #     - 9000:9000
-  #   environment:
-  #     KAFKA_BROKERCONNECT: "kafka:29092"   
-  #     JVM_OPTS: "-Xms32M -Xmx64M"
+  account-service:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - account-postgres
+      - kafka
+      - customer-service
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://account-postgres:5432/account_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      CUSTOMER_SERVICE_URL: http://customer-service:8081/api/v1/customers
