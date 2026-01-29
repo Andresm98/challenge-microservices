@@ -118,22 +118,23 @@ Durante el desarrollo se tomaron decisiones arquitectónicas considerando **rend
 - **Decisión:** Logging centralizado, métricas y tracing distribuido.
 - **Trade-off:** Se priorizó implementar la funcionalidad central antes de centralizar observabilidad.
 - **Ubicación planificada:** `./infrastructure/config/observability/`
-- **Beneficio esperado:** Permite detectar cuellos de botella y analizar comportamiento bajo carga.
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/observability/README.md)
+- **Beneficio esperado:** Permite detectar cuellos de botella y analizar comportamiento bajo carga. 
+- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/observability/README.MD)
 
 ### Seguridad
 - **Decisión:** Autenticación stateless y control de acceso por roles.
 - **Trade-off:** No se implementó integración con JWT/OAuth2 para no retrasar la entrega funcional.
 - **Ubicación planificada:** `./infrastructure/config/security/`
-- **Beneficio esperado:** Seguridad consistente y escalable, sin acoplarse al dominio.
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/security/README.md)
+- **Beneficio esperado:** Seguridad consistente y escalable, sin acoplarse al dominio. 
+- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/security/README.MD)
+ 
 
 ### Resiliencia
 - **Decisión:** Circuit breakers, reintentos y bulkheads para manejar fallos parciales.
 - **Trade-off:** Se documentó la estrategia pero no se implementaron librerías externas como Resilience4j.
 - **Ubicación planificada:** `./infrastructure/config/resilience/`
-- **Beneficio esperado:** Evita fallos en cascada y mantiene estabilidad bajo carga.
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/resilience/README.md)
+- **Beneficio esperado:** Evita fallos en cascada y mantiene estabilidad bajo carga. 
+- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/resilience/README.MD)
 
 > Nota: Estas decisiones reflejan un diseño preparado para producción,
 > pero la implementación completa se considera deuda técnica para mantener el foco en la funcionalidad central y el cumplimiento de los requisitos.
