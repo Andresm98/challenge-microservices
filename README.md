@@ -1,4 +1,4 @@
-# 🏦 Banking Microservices Platform - NTT DATA Test
+# 🏦 Banking Microservices Platform
 
 Esta plataforma es una solución bancaria basada en microservicios reactivos, diseñada para gestionar clientes, cuentas y movimientos financieros con alta concurrencia y escalabilidad.
 
