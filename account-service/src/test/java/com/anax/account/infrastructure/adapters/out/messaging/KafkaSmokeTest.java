@@ -17,7 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 // descartar
 @Tag("integration")
-@SpringBootTest
+@SpringBootTest(properties = {
+    "account.security.username=test-user",
+    "account.security.password=test-password"
+})
 public class KafkaSmokeTest {
 
     static final String TOPIC = "test-events";

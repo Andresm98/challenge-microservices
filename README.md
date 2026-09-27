@@ -5,7 +5,7 @@ Esta plataforma es una solución bancaria basada en microservicios reactivos, di
 
 
 ## 🛠️ Stack Tecnológico
-* **Java 17** con **Spring Boot 3.3.4** (WebFlux).
+* **Java 17** con **Spring Boot 4.0.2** (WebFlux).
 * **Programación Reactiva:** Project Reactor para flujos no bloqueantes.
 * **Persistencia:** Spring Data **R2DBC** con PostgreSQL 16.
 * **Mensajería:** **Apache Kafka** para arquitectura dirigida por eventos (Event-Driven).
@@ -32,14 +32,38 @@ El proyecto implementa **Arquitectura Hexagonal**, separando estrictamente la l�
 ## 🚀 Despliegue con Docker (Automatizado) (F7)
 El despliegue está totalmente automatizado mediante **Docker Multi-stage builds**. Docker se encarga de compilar el código fuente con Maven y levantar la infraestructura sin requerir dependencias locales (Java/Maven).
 
-```bash
+```cmd
 # 1. Clonar el repositorio
 git clone https://github.com/Andresm98/challenge-microservices
 cd challenge-microservices
 
-# 2. Levantar el ecosistema completo (Bases de datos, Kafka, Microservicios)
-docker-compose up --build
+# 2. Solo la primera vez: crear .env si aún no existe y reemplazar sus valores de ejemplo
+if not exist .env copy .env.example .env
+# 3. Levantar servicios, seguridad, métricas y logging centralizado
+docker compose up --build
 ```
+
+### Inspeccionar PostgreSQL
+
+Abre pgAdmin en `http://localhost:5050` e inicia sesión con `PGADMIN_DEFAULT_EMAIL` y `PGADMIN_DEFAULT_PASSWORD` del `.env` (si no se definieron, el usuario local es `admin@example.com` / `local-dev-pgadmin-password`). Registra los servidores usando **Add New Server**:
+
+| Campo | Customer DB | Account DB |
+| --- | --- | --- |
+| Host name/address | `customer-postgres` | `account-postgres` |
+| Port | `5432` | `5432` |
+| Maintenance database | `customer_db` | `account_db` |
+| Username/password | `CUSTOMER_DB_USER` / `CUSTOMER_DB_PASSWORD` | `ACCOUNT_DB_USER` / `ACCOUNT_DB_PASSWORD` |
+
+Dentro de Docker se usa el puerto `5432` para ambas bases; `5432` y `5433` son los puertos publicados en el host. El puerto de pgAdmin está enlazado solo a `localhost`. Cambia la contraseña de desarrollo antes de compartir el entorno.
+
+### Grafana y eventos Kafka
+
+- **Grafana:** abre `http://localhost:3000`. El usuario es `GRAFANA_ADMIN_USER` (por defecto `admin`) y la contraseña es `GRAFANA_ADMIN_PASSWORD` del `.env`; Compose exige que esta variable esté definida. Loki ya está provisionado como datasource. Para investigar el fallback de clientes, ve a **Explore → Loki** y consulta `{container="account-service"} |= "customer-service no disponible"`.
+- **Kafka / AKHQ:** abre `http://localhost:8083`. El Compose no configura autenticación para AKHQ; úsalo solo en desarrollo local. Los eventos de movimientos se publican en el topic `movement-events`.
+- **Dashboard de microservicios:** abre `http://localhost:3000/d/microservices-ops/microservices-operacion` (o la carpeta **Microservices**). Incluye volumen de logs separado por servicio, errores recientes de account/customer, logs completos por servicio y un contador de intentos de fallback de customer-service en account-service.
+- El dashboard también presenta las cuatro señales doradas de SRE por servicio: **tráfico** (HTTP requests/s), **errores** (ratio HTTP 5xx), **latencia** (p95 HTTP) y **saturación** (CPU del proceso y heap JVM). Prometheus queda en `http://localhost:9090`; los scrapes se realizan cada 15 segundos y se excluye `/actuator/**` de las métricas de tráfico/error/latencia para que las sondas no contaminen los resultados.
+
+RedisInsight no está incluido: es un visor para Redis, y este proyecto no define un servicio Redis. Para Kafka, el visor disponible es AKHQ.
 
 ## 📖 Documentación de la API (OpenAPI)
 
@@ -73,6 +97,35 @@ Se incluye una colección completa con casos de éxito y error (ej. saldo insufi
 | Account   | `POST /api/v1/accounts`                 | Crea una cuenta vinculada a un cliente         |
 | Movement  | `POST /api/v1/movements`                | Registro de transacciones con validación de saldo |
 | Report    | `GET /api/v1/reports/{id}?startDate=...&endDate=...` | Reporte consolidado de movimientos |
+| Reporte completo | `GET /api/v1/reports/users` | Todos los clientes con sus cuentas y movimientos |
+
+### Seguridad y operación
+
+- Todos los endpoints de `account-service` requieren HTTP Basic; solo health e info son públicos. Configura `ACCOUNT_API_USER` y `ACCOUNT_API_PASSWORD`; en producción sirve el API detrás de TLS. Customer-service publica sus cambios por Kafka y conserva su API reactiva HTTP; configura autenticación en el borde antes de exponerlo.
+- `POST /api/v1/movements` requiere `Idempotency-Key`. Reutilizar la misma clave devuelve el movimiento previo sin volver a aplicar el saldo.
+- `customer-service` tiene timeout configurable (`CUSTOMER_SERVICE_TIMEOUT`), retry y circuit breaker. El último nombre recibido correctamente se guarda en PostgreSQL local y sirve como fallback durante una caída.
+- Account publica `movement-events` mediante su outbox y customer-service los consume en un listener reactivo, registrándolos idempotentemente en `customer_movement_activity`. Customer publica `customer-events` mediante su propio outbox; account-service los consume y mantiene `customer_cache` como proyección local. Ambos flujos son asíncronos y de entrega al menos una vez; los consumidores deduplican por `eventId`.
+- Logs JSON de contenedores se envían por Grafana Alloy a Loki; Grafana queda en `http://localhost:3000`. Métricas Prometheus: `/actuator/prometheus`; health: `/actuator/health`.
+
+La API HTTP reactiva de customer-service sigue disponible para consultas y CRUD. Kafka replica cambios de cliente hacia account-service, mientras los movimientos siguen siendo propiedad de account-service; customer-service recibe una proyección de actividad, no autoridad para modificar saldos o movimientos.
+
+### Contrato Kafka bidireccional
+
+| Dirección | Topic | Clave del mensaje | Consumidor |
+| --- | --- | --- | --- |
+| customer → account | `customer-events` | `customerId` | `account-service-customer-projection` |
+| account → customer | `movement-events` | `accountId` | `customer-service-movements` |
+| account → notificaciones | `movement-events` | `eventId` | `account-movement-notifications` |
+
+`customer-events` publica `CREATED`, `UPDATED` y `DELETED`; el JSON contiene perfil público y nunca la contraseña. `movement-events` lleva `eventId`, `movementId`, `customerId`, `accountId`, tipo, valor, saldo y fecha. Cada productor primero persiste en su outbox local; un publicador reactivo reintenta filas no publicadas. Los consumidores usan operaciones idempotentes (`upsert`/`delete` en la proyección y `event_id` único en `customer_movement_activity`). La entrega sigue siendo al menos una vez, no una transacción distribuida Kafka/PostgreSQL.
+
+Para observar el flujo en desarrollo, abre AKHQ en `http://localhost:8083` y revisa `customer-events` y `movement-events`. En pgAdmin, `account_db.customer_cache` muestra la proyección de clientes; `customer_db.customer_movement_activity` muestra los movimientos recibidos desde account-service. Por ejemplo:
+
+```sql
+SELECT id, name, identification, status FROM customer_cache ORDER BY id;
+SELECT event_id, movement_id, customer_id, movement_type, value, balance
+FROM customer_movement_activity ORDER BY occurred_at DESC;
+```
 
 ---
 
@@ -109,36 +162,6 @@ mvnw.cmd clean test
 ```
 
 ---
-
-## 📖 Decisiones de Diseño y Trade-Offs
-
-Durante el desarrollo se tomaron decisiones arquitectónicas considerando **rendimiento, escalabilidad y resiliencia**, aunque algunas no se implementaron completamente y quedan documentadas como **deuda técnica**.
-
-### Observabilidad
-- **Decisión:** Logging centralizado, métricas y tracing distribuido.
-- **Trade-off:** Se priorizó implementar la funcionalidad central antes de centralizar observabilidad.
-- **Ubicación planificada:** `./infrastructure/config/observability/`
-- **Beneficio esperado:** Permite detectar cuellos de botella y analizar comportamiento bajo carga. 
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/observability/README.MD)
-
-### Seguridad
-- **Decisión:** Autenticación stateless y control de acceso por roles.
-- **Trade-off:** No se implementó integración con JWT/OAuth2 para no retrasar la entrega funcional.
-- **Ubicación planificada:** `./infrastructure/config/security/`
-- **Beneficio esperado:** Seguridad consistente y escalable, sin acoplarse al dominio. 
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/security/README.MD)
- 
-
-### Resiliencia
-- **Decisión:** Circuit breakers, reintentos y bulkheads para manejar fallos parciales.
-- **Trade-off:** Se documentó la estrategia pero no se implementaron librerías externas como Resilience4j.
-- **Ubicación planificada:** `./infrastructure/config/resilience/`
-- **Beneficio esperado:** Evita fallos en cascada y mantiene estabilidad bajo carga. 
-- **Path:** Ver la estructura completa del proyecto en [README.md](./account-service/src/main/java/com/anax/account/infrastructure/config/resilience/README.MD)
-
-> Nota: Estas decisiones reflejan un diseño preparado para producción,
-> pero la implementación completa se considera deuda técnica para mantener el foco en la funcionalidad central y el cumplimiento de los requisitos.
-
 
 ## ✒️ Autor
 

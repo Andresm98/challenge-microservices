@@ -104,6 +104,8 @@ paths:
 
   /accounts:
     get:
+      security:
+        - basicAuth: [ ]
       tags: [ Accounts ]
       summary: Obtener todas las cuentas bancarias
       responses:
@@ -117,6 +119,8 @@ paths:
                   $ref: '#/components/schemas/Account'
 
     post:
+      security:
+        - basicAuth: [ ]
       tags: [ Accounts ]
       summary: Crear una nueva cuenta bancaria
       requestBody:
@@ -137,6 +141,8 @@ paths:
 
   /accounts/{id}:
     get:
+      security:
+        - basicAuth: [ ]
       tags: [ Accounts ]
       summary: Obtener una cuenta por ID
       parameters:
@@ -157,6 +163,8 @@ paths:
           description: Cuenta no encontrada
 
     put:
+      security:
+        - basicAuth: [ ]
       tags: [ Accounts ]
       summary: Actualizar el estado de una cuenta
       parameters:
@@ -188,6 +196,8 @@ paths:
   # --- MOVEMENTS SERVICE ENDPOINTS ---
   /movements:
     get:
+      security:
+        - basicAuth: [ ]
       tags: [ Movements ]
       summary: Obtener todos los movimientos
       responses:
@@ -201,9 +211,18 @@ paths:
                   $ref: '#/components/schemas/Movement'
 
     post:
+      security:
+        - basicAuth: [ ]
       tags: [ Movements ]
       summary: Registrar movimiento (Depósito / Retiro)
-      description: Realiza la lógica de saldos y dispara eventos a Kafka.
+      description: Requiere una clave Idempotency-Key estable para reintentar sin duplicar el movimiento.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            maxLength: 128
       requestBody:
         required: true
         content:
@@ -231,8 +250,27 @@ paths:
 
   # REPOTE
 
+  /reports/users:
+    get:
+      security:
+        - basicAuth: [ ]
+      tags: [ Reports ]
+      summary: Reporte completo de todos los usuarios
+      description: Incluye datos públicos del cliente, sus cuentas y todos los movimientos. Nunca devuelve la contraseña del cliente.
+      responses:
+        '200':
+          description: Reporte completo de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserReport'
+
   /reports/{clientId}:
     get:
+      security:
+        - basicAuth: [ ]
       tags: [ Reports ]
       summary: Generar estado de cuenta detallado
       description: Retorna un reporte consolidado de movimientos y cuentas para un cliente, filtrado por rango de fechas.
@@ -289,6 +327,10 @@ paths:
 # schemas componentes
 
 components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
   schemas:
     Customer:
       type: object
@@ -380,3 +422,69 @@ components:
               balance:
                 type: number
                 format: double
+
+    UserReport:
+      type: object
+      properties:
+        usuario:
+          $ref: '#/components/schemas/CustomerProfile'
+        cuentas:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserReportAccount'
+
+    CustomerProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        gender:
+          type: string
+        age:
+          type: integer
+        identification:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        status:
+          type: boolean
+
+    UserReportAccount:
+      type: object
+      properties:
+        id:
+          type: integer
+        accountNumber:
+          type: string
+        accountType:
+          type: string
+        initialBalance:
+          type: number
+          format: double
+        status:
+          type: boolean
+        movimientos:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserReportMovement'
+
+    UserReportMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        movementType:
+          type: string
+        value:
+          type: number
+          format: double
+        balance:
+          type: number
+          format: double

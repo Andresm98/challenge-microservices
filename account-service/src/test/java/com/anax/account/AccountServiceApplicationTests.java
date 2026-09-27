@@ -5,7 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @Tag("integration")
-@SpringBootTest
+@SpringBootTest(properties = {
+		"account.security.username=test-user",
+		"account.security.password=test-password"
+})
 class AccountServiceApplicationTests {
 
 	@Test

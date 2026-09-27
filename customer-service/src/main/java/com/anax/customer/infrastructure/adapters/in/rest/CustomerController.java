@@ -3,6 +3,7 @@ package com.anax.customer.infrastructure.adapters.in.rest;
 
 import com.anax.customer.domain.model.Customer;
 import com.anax.customer.domain.repository.CustomerRepository;
+import com.anax.customer.application.CustomerApplicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import reactor.core.publisher.Mono;
 public class CustomerController {
 
     private final CustomerRepository repository;
+    private final CustomerApplicationService customerService;
 
     @GetMapping
     public Flux<Customer> getAll() {
@@ -29,21 +31,17 @@ public class CustomerController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Customer> create(@RequestBody Customer customer) {
-        return repository.save(customer);
+        return customerService.create(customer);
     }
 
     @PutMapping("/{id}")
     public Mono<Customer> update(@PathVariable Long id, @RequestBody Customer customer) {
-        return repository.findById(id)
-                .flatMap(existing -> {
-                    customer.setId(id);
-                    return repository.save(customer);
-                });
+        return customerService.update(id, customer);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> delete(@PathVariable Long id) {
-        return repository.deleteById(id);
+        return customerService.delete(id);
     }
 }

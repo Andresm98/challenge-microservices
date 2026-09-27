@@ -6,8 +6,15 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: customer_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${CUSTOMER_DB_USER:?Set CUSTOMER_DB_USER before startup}
+      POSTGRES_PASSWORD: ${CUSTOMER_DB_PASSWORD:?Set CUSTOMER_DB_PASSWORD before startup}
+    volumes:
+      - customer-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     labels:
       - "com.nttdata.project=banking-platform"
 
@@ -18,10 +25,33 @@ services:
       - "5433:5432"
     environment:
       POSTGRES_DB: account_db
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${ACCOUNT_DB_USER:?Set ACCOUNT_DB_USER before startup}
+      POSTGRES_PASSWORD: ${ACCOUNT_DB_PASSWORD:?Set ACCOUNT_DB_PASSWORD before startup}
+    volumes:
+      - account-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     labels:
       - "com.nttdata.project=banking-platform"
+
+  pgadmin:
+    image: dpage/pgadmin4:9.10
+    container_name: banking-pgadmin
+    depends_on:
+      customer-postgres:
+        condition: service_healthy
+      account-postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-local-dev-pgadmin-password}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -34,6 +64,12 @@ services:
     container_name: banking-kafka
     depends_on:
       - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     ports:
       - "9092:9092"
     environment:
@@ -47,6 +83,9 @@ services:
   akhq:
     image: tchiotludo/akhq
     container_name: banking-akhq
+    depends_on:
+      kafka:
+        condition: service_healthy
     ports:
       - "8083:8080"
     environment:
@@ -57,6 +96,67 @@ services:
               properties:
                 bootstrap.servers: kafka:29092
 
+  loki:
+    image: grafana/loki:3.5.0
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observability/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    depends_on:
+      prometheus-auth-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-auth:/etc/prometheus/secrets:ro
+      - prometheus-data:/prometheus
+
+  prometheus-auth-init:
+    image: busybox:1.37
+    command:
+      - sh
+      - -c
+      - umask 077; printf '%s' "$$ACCOUNT_API_PASSWORD" > /prometheus-auth/account-api-password; chmod 0444 /prometheus-auth/account-api-password
+    environment:
+      ACCOUNT_API_PASSWORD: ${ACCOUNT_API_PASSWORD:?Set ACCOUNT_API_PASSWORD before startup}
+    volumes:
+      - prometheus-auth:/prometheus-auth
+    restart: "no"
+
+  alloy:
+    image: grafana/alloy:v1.8.3
+    command: run /etc/alloy/config.alloy --server.http.listen-addr=0.0.0.0:12345
+    depends_on:
+      - loki
+    volumes:
+      - ./observability/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    depends_on:
+      - loki
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD before startup}
+    volumes:
+      - ./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - ./observability/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/microservices.yml:ro
+      - ./observability/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+
   customer-service:
     build:
       context: ./customer-service
@@ -65,9 +165,14 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - customer-postgres
+      customer-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       SPRING_R2DBC_URL: r2dbc:postgresql://customer-postgres:5432/customer_db
+      SPRING_R2DBC_USERNAME: ${CUSTOMER_DB_USER:?Set CUSTOMER_DB_USER before startup}
+      SPRING_R2DBC_PASSWORD: ${CUSTOMER_DB_PASSWORD:?Set CUSTOMER_DB_PASSWORD before startup}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
   account-service:
@@ -78,10 +183,26 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - account-postgres
-      - kafka
-      - customer-service
+      account-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      customer-service:
+        condition: service_started
     environment:
       SPRING_R2DBC_URL: r2dbc:postgresql://account-postgres:5432/account_db
+      SPRING_R2DBC_USERNAME: ${ACCOUNT_DB_USER:?Set ACCOUNT_DB_USER before startup}
+      SPRING_R2DBC_PASSWORD: ${ACCOUNT_DB_PASSWORD:?Set ACCOUNT_DB_PASSWORD before startup}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       CUSTOMER_SERVICE_URL: http://customer-service:8081/api/v1/customers
+      ACCOUNT_API_USER: ${ACCOUNT_API_USER:-account-api}
+      ACCOUNT_API_PASSWORD: ${ACCOUNT_API_PASSWORD:?Set ACCOUNT_API_PASSWORD before startup}
+
+volumes:
+  customer-postgres-data:
+  account-postgres-data:
+  pgadmin-data:
+  loki-data:
+  prometheus-data:
+  prometheus-auth:
+  grafana-data:
