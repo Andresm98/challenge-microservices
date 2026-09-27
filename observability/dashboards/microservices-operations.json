@@ -1,0 +1,127 @@
+{
+  "id": null,
+  "uid": "microservices-ops",
+  "title": "Microservices | Operacion",
+  "tags": ["microservices", "loki", "operations"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Account logs / 5m",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "targets": [{ "refId": "A", "expr": "sum(count_over_time({container=\"account-service\"}[5m]))", "queryType": "instant" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto" }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Customer logs / 5m",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "targets": [{ "refId": "A", "expr": "sum(count_over_time({container=\"customer-service\"}[5m]))", "queryType": "instant" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto" }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Customer fallback / 5m",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "targets": [{ "refId": "A", "expr": "sum(count_over_time({container=\"account-service\"} |= \"customer-service no disponible\"[5m]))", "queryType": "instant" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "auto", "colorMode": "value", "graphMode": "area", "justifyMode": "auto" }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Traffic | HTTP requests/sec",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "targets": [{ "refId": "A", "expr": "sum by (application) (rate(http_server_requests_seconds_count{application=~\"account-service|customer-service\",uri!~\"/actuator.*\"}[5m]))", "legendFormat": "{{application}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Account service | Errors",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "targets": [{ "refId": "A", "expr": "{container=\"account-service\"} |~ \"(?i)(error|exception|failed|timeout)\"" }],
+      "options": { "showTime": true, "showLabels": true, "showCommonLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none" }
+    },
+    {
+      "id": 6,
+      "type": "logs",
+      "title": "Customer service | Errors",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "targets": [{ "refId": "A", "expr": "{container=\"customer-service\"} |~ \"(?i)(error|exception|failed|timeout)\"" }],
+      "options": { "showTime": true, "showLabels": true, "showCommonLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none" }
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Account service | All logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 36 },
+      "targets": [{ "refId": "A", "expr": "{container=\"account-service\"}" }],
+      "options": { "showTime": true, "showLabels": true, "showCommonLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none" }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Customer service | All logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 36 },
+      "targets": [{ "refId": "A", "expr": "{container=\"customer-service\"}" }],
+      "options": { "showTime": true, "showLabels": true, "showCommonLabels": false, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none" }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Latency | p95 HTTP (seconds)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket{application=~\"account-service|customer-service\",uri!~\"/actuator.*\"}[5m])))", "legendFormat": "{{application}} p95" }],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Errors | HTTP 5xx (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [{ "refId": "A", "expr": "100 * sum by (application) (rate(http_server_requests_seconds_count{application=~\"account-service|customer-service\",uri!~\"/actuator.*\",status=~\"5..\"}[5m])) / sum by (application) (rate(http_server_requests_seconds_count{application=~\"account-service|customer-service\",uri!~\"/actuator.*\"}[5m]))", "legendFormat": "{{application}} 5xx" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Saturation | Process CPU (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [{ "refId": "A", "expr": "100 * process_cpu_usage{application=~\"account-service|customer-service\"}", "legendFormat": "{{application}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Saturation | JVM heap used (%)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [{ "refId": "A", "expr": "100 * sum by (application) (jvm_memory_used_bytes{area=\"heap\",application=~\"account-service|customer-service\"}) / sum by (application) (jvm_memory_max_bytes{area=\"heap\",application=~\"account-service|customer-service\"})", "legendFormat": "{{application}}" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    }
+  ]
+}

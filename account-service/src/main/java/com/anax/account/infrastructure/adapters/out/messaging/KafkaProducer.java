@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
@@ -19,5 +20,11 @@ public class KafkaProducer {
         log.info("Enviando evento de movimiento a Kafka: {}", movement.getId());
 
         kafkaTemplate.send(TOPIC, movement);
+    }
+
+    public Mono<Void> sendMovementEventReactive(Movement movement) {
+        return Mono.fromFuture(kafkaTemplate.send(TOPIC, movement.getId().toString(), movement))
+                .doOnSuccess(result -> log.info("Evento de movimiento publicado: {}", movement.getId()))
+                .then();
     }
 }

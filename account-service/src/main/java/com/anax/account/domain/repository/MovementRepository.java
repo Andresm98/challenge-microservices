@@ -4,9 +4,14 @@ import com.anax.account.domain.model.Movement;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
 
 public interface MovementRepository extends ReactiveCrudRepository<Movement, Long> {
+
+    Mono<Movement> findByIdempotencyKey(String idempotencyKey);
+
+    Flux<Movement> findAllByAccountId(Long accountId);
 
     @Query("SELECT m.* FROM movements m " +
             "JOIN accounts a ON m.account_id = a.id " +
