@@ -167,6 +167,8 @@ services:
     depends_on:
       customer-postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       SPRING_R2DBC_URL: r2dbc:postgresql://customer-postgres:5432/customer_db
       SPRING_R2DBC_USERNAME: ${CUSTOMER_DB_USER:?Set CUSTOMER_DB_USER before startup}

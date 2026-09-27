@@ -1,30 +1,30 @@
 package com.anax.account.infrastructure.adapters.out.messaging;
 
-import com.anax.account.domain.model.Movement;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+
+import com.anax.account.domain.model.MovementRecordedEvent;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class KafkaProducer {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
     private static final String TOPIC = "movement-events";
 
-    public void sendMovementEvent(Movement movement) {
-        // Implementación para enviar el evento a Kafka (LOGS)
-        log.info("Enviando evento de movimiento a Kafka: {}", movement.getId());
 
-        kafkaTemplate.send(TOPIC, movement);
-    }
-
-    public Mono<Void> sendMovementEventReactive(Movement movement) {
-        return Mono.fromFuture(kafkaTemplate.send(TOPIC, movement.getId().toString(), movement))
-                .doOnSuccess(result -> log.info("Evento de movimiento publicado: {}", movement.getId()))
+    public Mono<Void> sendMovementEventReactive(MovementRecordedEvent event) {
+        return Mono.fromCallable(() -> objectMapper.writeValueAsString(event))
+                .flatMap(payload -> Mono.fromFuture(kafkaTemplate.send(
+                        TOPIC, event.getAccountId().toString(), payload)))
+                .doOnSuccess(result -> log.info("Evento de movimiento publicado: {}", event.getEventId()))
                 .then();
     }
 }

@@ -101,13 +101,31 @@ Se incluye una colección completa con casos de éxito y error (ej. saldo insufi
 
 ### Seguridad y operación
 
-- Todos los endpoints de `account-service` requieren HTTP Basic; solo health e info son públicos. Configura `ACCOUNT_API_USER` y `ACCOUNT_API_PASSWORD`; en producción sirve el API detrás de TLS. `customer-service` no se modifica en este alcance y conserva su seguridad actual.
+- Todos los endpoints de `account-service` requieren HTTP Basic; solo health e info son públicos. Configura `ACCOUNT_API_USER` y `ACCOUNT_API_PASSWORD`; en producción sirve el API detrás de TLS. Customer-service publica sus cambios por Kafka y conserva su API reactiva HTTP; configura autenticación en el borde antes de exponerlo.
 - `POST /api/v1/movements` requiere `Idempotency-Key`. Reutilizar la misma clave devuelve el movimiento previo sin volver a aplicar el saldo.
 - `customer-service` tiene timeout configurable (`CUSTOMER_SERVICE_TIMEOUT`), retry y circuit breaker. El último nombre recibido correctamente se guarda en PostgreSQL local y sirve como fallback durante una caída.
-- Los movimientos y sus eventos se guardan juntos en PostgreSQL mediante outbox; Kafka se reintenta de forma asíncrona. La entrega es al menos una vez, por lo que los consumidores deben deduplicar por la clave Kafka (id del movimiento).
+- Account publica `movement-events` mediante su outbox y customer-service los consume en un listener reactivo, registrándolos idempotentemente en `customer_movement_activity`. Customer publica `customer-events` mediante su propio outbox; account-service los consume y mantiene `customer_cache` como proyección local. Ambos flujos son asíncronos y de entrega al menos una vez; los consumidores deduplican por `eventId`.
 - Logs JSON de contenedores se envían por Grafana Alloy a Loki; Grafana queda en `http://localhost:3000`. Métricas Prometheus: `/actuator/prometheus`; health: `/actuator/health`.
 
-Los cambios de datos de cliente no se aceptan desde `account-service`: el contrato de este servicio solo consulta clientes. La caché se refresca al completar una lectura remota; una cola de escrituras offline requiere definir qué cambios puede iniciar account y formalizar ese comando en el contrato de customer.
+La API HTTP reactiva de customer-service sigue disponible para consultas y CRUD. Kafka replica cambios de cliente hacia account-service, mientras los movimientos siguen siendo propiedad de account-service; customer-service recibe una proyección de actividad, no autoridad para modificar saldos o movimientos.
+
+### Contrato Kafka bidireccional
+
+| Dirección | Topic | Clave del mensaje | Consumidor |
+| --- | --- | --- | --- |
+| customer → account | `customer-events` | `customerId` | `account-service-customer-projection` |
+| account → customer | `movement-events` | `accountId` | `customer-service-movements` |
+| account → notificaciones | `movement-events` | `eventId` | `account-movement-notifications` |
+
+`customer-events` publica `CREATED`, `UPDATED` y `DELETED`; el JSON contiene perfil público y nunca la contraseña. `movement-events` lleva `eventId`, `movementId`, `customerId`, `accountId`, tipo, valor, saldo y fecha. Cada productor primero persiste en su outbox local; un publicador reactivo reintenta filas no publicadas. Los consumidores usan operaciones idempotentes (`upsert`/`delete` en la proyección y `event_id` único en `customer_movement_activity`). La entrega sigue siendo al menos una vez, no una transacción distribuida Kafka/PostgreSQL.
+
+Para observar el flujo en desarrollo, abre AKHQ en `http://localhost:8083` y revisa `customer-events` y `movement-events`. En pgAdmin, `account_db.customer_cache` muestra la proyección de clientes; `customer_db.customer_movement_activity` muestra los movimientos recibidos desde account-service. Por ejemplo:
+
+```sql
+SELECT id, name, identification, status FROM customer_cache ORDER BY id;
+SELECT event_id, movement_id, customer_id, movement_type, value, balance
+FROM customer_movement_activity ORDER BY occurred_at DESC;
+```
 
 ---
 

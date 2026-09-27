@@ -17,3 +17,26 @@ VALUES
     ('Marianela Montalvo', 'Femenino', 25, 'ID66666', 'Amazonas y NNUU', '097548965', '5678', TRUE),
     ('Juan Osorio', 'Masculino', 66, 'ID77777', '13 junio y Equinoccial', '098874587', '1245', TRUE)
 ON CONFLICT (identification) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS customer_event_outbox
+(
+    id          BIGSERIAL PRIMARY KEY,
+    event_id    VARCHAR(36)  NOT NULL UNIQUE,
+    event_type  VARCHAR(20)  NOT NULL,
+    customer_id BIGINT       NOT NULL,
+    payload     TEXT         NOT NULL,
+    created_at  TIMESTAMP    NOT NULL,
+    published   BOOLEAN      NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS customer_movement_activity
+(
+    event_id      VARCHAR(100) PRIMARY KEY,
+    movement_id   BIGINT       NOT NULL UNIQUE,
+    customer_id   BIGINT       NOT NULL,
+    account_id    BIGINT       NOT NULL,
+    movement_type VARCHAR(20)  NOT NULL,
+    value         DECIMAL(15, 2) NOT NULL,
+    balance       DECIMAL(15, 2) NOT NULL,
+    occurred_at   TIMESTAMP    NOT NULL
+);

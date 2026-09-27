@@ -15,13 +15,11 @@ spring:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
         producer:
             key-serializer: org.apache.kafka.common.serialization.StringSerializer
-            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+            value-serializer: org.apache.kafka.common.serialization.StringSerializer
         consumer:
             group-id: notification-group
             key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-            value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-            properties:
-                "[spring.json.trusted.packages]": "com.anax.account.domain.model"
+            value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 # Configuración para el WebClient (Reporte F4)
 customer:
