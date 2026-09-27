@@ -1,10 +1,12 @@
 package com.anax.account.aplication.services;
 
 import com.anax.account.domain.exception.InsufficientBalanceException;
+import com.anax.account.domain.model.Account;
 import com.anax.account.domain.model.Movement;
+import com.anax.account.domain.model.MovementOutboxEvent;
 import com.anax.account.domain.repository.AccountRepository;
 import com.anax.account.domain.repository.MovementRepository;
-import com.anax.account.infrastructure.adapters.out.messaging.KafkaProducer;
+import com.anax.account.domain.repository.MovementOutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,20 @@ import java.time.LocalDateTime;
 public class MovementService {
     private final MovementRepository movementRepository;
     private final AccountRepository accountRepository;
-    private final KafkaProducer kafkaProducer; // Inyectar el productor
+    private final MovementOutboxRepository movementOutboxRepository;
 
     @Transactional
-    public Mono<Movement> createMovement(Movement movement) {
-        return accountRepository.findById(movement.getAccountId())
+    public Mono<Movement> createMovement(Movement movement, String idempotencyKey) {
+        movement.setIdempotencyKey(idempotencyKey);
+        return accountRepository.findByIdForUpdate(movement.getAccountId())
                 .switchIfEmpty(Mono.error(new RuntimeException("Cuenta no existe")))
                 .flatMap(account -> {
+                    return movementRepository.findByIdempotencyKey(idempotencyKey)
+                            .switchIfEmpty(Mono.defer(() -> createNewMovement(movement, account)));
+                });
+    }
+
+    private Mono<Movement> createNewMovement(Movement movement, Account account) {
                     // Lógica F2: Normalizar el valor según el tipo de movimiento
                     double valueToApply = movement.getValue();
 
@@ -63,7 +72,8 @@ public class MovementService {
 
                     return accountRepository.save(account)
                             .then(movementRepository.save(movement))
-                            .doOnSuccess(kafkaProducer::sendMovementEvent);
-                });
+                            .flatMap(savedMovement -> movementOutboxRepository.save(new MovementOutboxEvent(
+                                null, savedMovement.getId(), LocalDateTime.now(), false))
+                                .thenReturn(savedMovement));
     }
 }

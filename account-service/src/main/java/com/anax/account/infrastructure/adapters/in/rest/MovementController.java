@@ -25,7 +25,8 @@ public class MovementController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Movement> create(@RequestBody Movement movement) {
-        return movementService.createMovement(movement);
+    public Mono<Movement> create(@RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestBody Movement movement) {
+        return movementService.createMovement(movement, idempotencyKey);
     }
 }

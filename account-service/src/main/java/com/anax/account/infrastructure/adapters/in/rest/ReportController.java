@@ -1,6 +1,7 @@
 package com.anax.account.infrastructure.adapters.in.rest;
 
 import com.anax.account.domain.model.dto.AccountStatementDTO;
+import com.anax.account.domain.model.dto.UserReportDTO;
 import com.anax.account.aplication.services.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -14,6 +15,11 @@ import java.time.LocalDateTime;
 public class ReportController {
 
     private final ReportService reportService;
+
+    @GetMapping("/users")
+    public Flux<UserReportDTO> getAllUsersReport() {
+        return reportService.generateCompleteReport();
+    }
 
     @GetMapping("/{clientId}")
     public Flux<AccountStatementDTO> getReport(

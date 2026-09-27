@@ -28,4 +28,7 @@ public class Movement {
 
     @Column("account_id")
     private Long accountId;
+
+    @Column("idempotency_key")
+    private String idempotencyKey;
 }
